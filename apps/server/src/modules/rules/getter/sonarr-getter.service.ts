@@ -1,25 +1,25 @@
-import { Injectable } from '@nestjs/common';
-import _ from 'lodash';
-import { PlexLibraryItem } from '../../../modules/api/plex-api/interfaces/library.interfaces';
-import { PlexMetadata } from '../../../modules/api/plex-api/interfaces/media.interface';
+import { Injectable } from "@nestjs/common";
+import _ from "lodash";
+import { PlexLibraryItem } from "../../../modules/api/plex-api/interfaces/library.interfaces";
+import { PlexMetadata } from "../../../modules/api/plex-api/interfaces/media.interface";
 import {
   SonarrEpisode,
   SonarrEpisodeFile,
   SonarrSeason,
-} from '../../../modules/api/servarr-api/interfaces/sonarr.interface';
-import { ServarrService } from '../../../modules/api/servarr-api/servarr.service';
-import { TmdbIdService } from '../../../modules/api/tmdb-api/tmdb-id.service';
-import { TmdbApiService } from '../../../modules/api/tmdb-api/tmdb.service';
-import { EPlexDataType } from '../../api/plex-api/enums/plex-data-type-enum';
-import { PlexApiService } from '../../api/plex-api/plex-api.service';
-import { SonarrApi } from '../../api/servarr-api/helpers/sonarr.helper';
-import { MaintainerrLogger } from '../../logging/logs.service';
+} from "../../../modules/api/servarr-api/interfaces/sonarr.interface";
+import { ServarrService } from "../../../modules/api/servarr-api/servarr.service";
+import { TmdbIdService } from "../../../modules/api/tmdb-api/tmdb-id.service";
+import { TmdbApiService } from "../../../modules/api/tmdb-api/tmdb.service";
+import { EPlexDataType } from "../../api/plex-api/enums/plex-data-type-enum";
+import { PlexApiService } from "../../api/plex-api/plex-api.service";
+import { SonarrApi } from "../../api/servarr-api/helpers/sonarr.helper";
+import { MaintainerrLogger } from "../../logging/logs.service";
 import {
   Application,
   Property,
   RuleConstants,
-} from '../constants/rules.constants';
-import { RulesDto } from '../dtos/rules.dto';
+} from "../constants/rules.constants";
+import { RulesDto } from "../dtos/rules.dto";
 
 @Injectable()
 export class SonarrGetterService {
@@ -30,23 +30,23 @@ export class SonarrGetterService {
     private readonly plexApi: PlexApiService,
     private readonly tmdbApi: TmdbApiService,
     private readonly tmdbIdHelper: TmdbIdService,
-    private readonly logger: MaintainerrLogger,
+    private readonly logger: MaintainerrLogger
   ) {
     logger.setContext(SonarrGetterService.name);
     const ruleConstanst = new RuleConstants();
     this.plexProperties = ruleConstanst.applications.find(
-      (el) => el.id === Application.SONARR,
+      (el) => el.id === Application.SONARR
     ).props;
   }
   async get(
     id: number,
     libItem: PlexLibraryItem,
     dataType?: EPlexDataType,
-    ruleGroup?: RulesDto,
+    ruleGroup?: RulesDto
   ) {
     if (!ruleGroup.collection?.sonarrSettingsId) {
       this.logger.error(
-        `No Sonarr server configured for ${ruleGroup.collection?.title}`,
+        `No Sonarr server configured for ${ruleGroup.collection?.title}`
       );
       return null;
     }
@@ -69,7 +69,7 @@ export class SonarrGetterService {
         libItem = (await this.plexApi.getMetadata(
           libItem.grandparentRatingKey
             ? libItem.grandparentRatingKey
-            : libItem.parentRatingKey,
+            : libItem.parentRatingKey
         )) as unknown as PlexLibraryItem;
       }
 
@@ -77,13 +77,13 @@ export class SonarrGetterService {
 
       if (!tvdbId) {
         this.logger.warn(
-          `[TVDB] Failed to fetch tvdb id for '${libItem.title}' with id '${libItem.ratingKey}. As a result, no Sonarr query could be made.`,
+          `[TVDB] Failed to fetch tvdb id for '${libItem.title}' with id '${libItem.ratingKey}. As a result, no Sonarr query could be made.`
         );
         return null;
       }
 
       const sonarrApiClient = await this.servarrService.getSonarrApiClient(
-        ruleGroup.collection.sonarrSettingsId,
+        ruleGroup.collection.sonarrSettingsId
       );
 
       const showResponse = await sonarrApiClient.getSeriesByTvdbId(tvdbId);
@@ -105,7 +105,7 @@ export class SonarrGetterService {
           return undefined;
         }
 
-        if (showResponse.added === '0001-01-01T00:00:00Z') {
+        if (showResponse.added === "0001-01-01T00:00:00Z") {
           return undefined;
         }
 
@@ -125,7 +125,7 @@ export class SonarrGetterService {
           const episodes = await sonarrApiClient.getEpisodes(
             showResponse.id,
             seasonNumber,
-            episodeNumbers,
+            episodeNumbers
           );
 
           return episodes?.[0];
@@ -150,20 +150,20 @@ export class SonarrGetterService {
         }
 
         episodeFilePromise ??= sonarrApiClient.getEpisodeFile(
-          episode.episodeFileId,
+          episode.episodeFileId
         );
 
         return episodeFilePromise;
       };
 
       switch (prop.name) {
-        case 'addDate': {
+        case "addDate": {
           return showResponse.added &&
-            showResponse.added !== '0001-01-01T00:00:00Z'
+            showResponse.added !== "0001-01-01T00:00:00Z"
             ? new Date(showResponse.added)
             : null;
         }
-        case 'diskSizeEntireShow': {
+        case "diskSizeEntireShow": {
           if (
             [EPlexDataType.SEASONS, EPlexDataType.EPISODES].includes(dataType)
           ) {
@@ -181,24 +181,24 @@ export class SonarrGetterService {
               : null;
           }
         }
-        case 'filePath': {
+        case "filePath": {
           return showResponse.path ? showResponse.path : null;
         }
-        case 'episodeFilePath': {
+        case "episodeFilePath": {
           const episodeFile = await getEpisodeFile();
           return episodeFile?.path ? episodeFile.path : null;
         }
-        case 'episodeNumber': {
+        case "episodeNumber": {
           const episode = await getEpisode();
           return episode?.episodeNumber != null ? episode.episodeNumber : null;
         }
-        case 'tags': {
+        case "tags": {
           const tagIds = showResponse.tags;
           return (await sonarrApiClient.getTags())
             .filter((el) => tagIds.includes(el.id))
             .map((el) => el.label);
         }
-        case 'qualityProfileId': {
+        case "qualityProfileId": {
           const episodeFile = await getEpisodeFile();
           if ([EPlexDataType.EPISODES].includes(dataType) && episodeFile) {
             return episodeFile.quality.quality.id;
@@ -206,7 +206,7 @@ export class SonarrGetterService {
             return showResponse.qualityProfileId;
           }
         }
-        case 'firstAirDate': {
+        case "firstAirDate": {
           if (
             [EPlexDataType.SEASONS, EPlexDataType.EPISODES].includes(dataType)
           ) {
@@ -218,7 +218,7 @@ export class SonarrGetterService {
               : null;
           }
         }
-        case 'seasons': {
+        case "seasons": {
           if (
             [EPlexDataType.SEASONS, EPlexDataType.EPISODES].includes(dataType)
           ) {
@@ -231,19 +231,19 @@ export class SonarrGetterService {
               : null;
           }
         }
-        case 'status': {
+        case "status": {
           return showResponse.status ? showResponse.status : null;
         }
-        case 'ended': {
+        case "ended": {
           return showResponse.ended !== undefined
             ? showResponse.ended
               ? 1
               : 0
             : null;
         }
-        case 'monitored': {
+        case "monitored": {
           if (dataType === EPlexDataType.SEASONS) {
-            return showResponse.added !== '0001-01-01T00:00:00Z' && season
+            return showResponse.added !== "0001-01-01T00:00:00Z" && season
               ? season.monitored
                 ? 1
                 : 0
@@ -252,20 +252,20 @@ export class SonarrGetterService {
 
           if (dataType === EPlexDataType.EPISODES) {
             const episode = await getEpisode();
-            return showResponse.added !== '0001-01-01T00:00:00Z' && episode
+            return showResponse.added !== "0001-01-01T00:00:00Z" && episode
               ? episode.monitored
                 ? 1
                 : 0
               : null;
           }
 
-          return showResponse.added !== '0001-01-01T00:00:00Z'
+          return showResponse.added !== "0001-01-01T00:00:00Z"
             ? showResponse.monitored
               ? 1
               : 0
             : null;
         }
-        case 'unaired_episodes': {
+        case "unaired_episodes": {
           // returns true if a season with unaired episodes is found in monitored seasons
           const data: SonarrSeason[] = [];
           if (dataType === EPlexDataType.SEASONS) {
@@ -278,13 +278,13 @@ export class SonarrGetterService {
               .length > 0
           );
         }
-        case 'unaired_episodes_season': {
+        case "unaired_episodes_season": {
           // returns true if the season of an episode has unaired episodes
           return season?.statistics
             ? season.statistics.nextAiring !== undefined
             : false;
         }
-        case 'seasons_monitored': {
+        case "seasons_monitored": {
           // returns the number of monitored seasons / episodes
           if (
             [EPlexDataType.SEASONS, EPlexDataType.EPISODES].includes(dataType)
@@ -296,7 +296,7 @@ export class SonarrGetterService {
             return showResponse.seasons.filter((el) => el.monitored).length;
           }
         }
-        case 'part_of_latest_season': {
+        case "part_of_latest_season": {
           // returns the true when this is the latest season or the episode is part of the latest season
           if (
             [EPlexDataType.SEASONS, EPlexDataType.EPISODES].includes(dataType)
@@ -307,21 +307,21 @@ export class SonarrGetterService {
                     await this.getLastAiredOrCurrentlyAiringSeason(
                       showResponse.seasons,
                       showResponse.id,
-                      sonarrApiClient,
+                      sonarrApiClient
                     )
                   )?.seasonNumber
               : false;
           }
         }
-        case 'originalLanguage': {
+        case "originalLanguage": {
           return showResponse.originalLanguage?.name
             ? showResponse.originalLanguage.name
             : null;
         }
-        case 'seasonFinale': {
+        case "seasonFinale": {
           const episodes = await sonarrApiClient.getEpisodes(
             showResponse.id,
-            origLibItem.index,
+            origLibItem.index
           );
 
           if (!episodes) {
@@ -329,13 +329,13 @@ export class SonarrGetterService {
           }
 
           return episodes.some(
-            (el) => el.finaleType === 'season' && el.hasFile,
+            (el) => el.finaleType === "season" && el.hasFile
           );
         }
-        case 'seriesFinale': {
+        case "seriesFinale": {
           const episodes = await sonarrApiClient.getEpisodes(
             showResponse.id,
-            dataType === EPlexDataType.SEASONS ? origLibItem.index : undefined,
+            dataType === EPlexDataType.SEASONS ? origLibItem.index : undefined
           );
 
           if (!episodes) {
@@ -343,46 +343,61 @@ export class SonarrGetterService {
           }
 
           return episodes.some(
-            (el) => el.finaleType === 'series' && el.hasFile,
+            (el) => el.finaleType === "series" && el.hasFile
           );
         }
-        case 'seasonNumber': {
+        case "seasonNumber": {
           return season.seasonNumber;
         }
-        case 'rating': {
+        case "rating": {
           return showResponse.ratings?.value ?? null;
         }
-        case 'ratingVotes': {
+        case "ratingVotes": {
           return showResponse.ratings?.votes ?? null;
         }
-        case 'fileQualityCutoffMet': {
+        case "fileQualityCutoffMet": {
           const episodeFile = await getEpisodeFile();
           return episodeFile?.qualityCutoffNotMet != null
             ? !episodeFile.qualityCutoffNotMet
             : false;
         }
-        case 'fileQualityName': {
+        case "fileQualityName": {
           const episodeFile = await getEpisodeFile();
           return episodeFile?.quality?.quality?.name ?? null;
         }
-        case 'qualityProfileName': {
+        case "qualityProfileName": {
           const showProfile = showResponse.qualityProfileId;
 
           return (await sonarrApiClient.getProfiles())?.find(
-            (el) => el.id === showProfile,
+            (el) => el.id === showProfile
           ).name;
         }
-        case 'fileAudioLanguages': {
+        case "fileAudioLanguages": {
           const episodeFile = await getEpisodeFile();
           return episodeFile?.mediaInfo?.audioLanguages ?? null;
         }
-        case 'seriesType': {
+        case "seriesType": {
           return showResponse.seriesType ?? null;
+        }
+        case "missing_episodes": {
+          if (
+            [EPlexDataType.SEASONS, EPlexDataType.EPISODES].includes(dataType)
+          ) {
+            return season?.statistics
+              ? season.statistics.episodeCount -
+                  season.statistics.episodeFileCount
+              : null;
+          }
+
+          return showResponse.statistics
+            ? showResponse.statistics.episodeCount -
+                showResponse.statistics.episodeFileCount
+            : null;
         }
       }
     } catch (e) {
       this.logger.warn(
-        `Sonarr-Getter - Action failed for '${libItem.title}' with id '${libItem.ratingKey}': ${e.message}`,
+        `Sonarr-Getter - Action failed for '${libItem.title}' with id '${libItem.ratingKey}': ${e.message}`
       );
       this.logger.debug(e);
       return undefined;
@@ -399,7 +414,7 @@ export class SonarrGetterService {
   private async getLastAiredOrCurrentlyAiringSeason(
     seasons: SonarrSeason[],
     showId: number,
-    apiClient: SonarrApi,
+    apiClient: SonarrApi
   ): Promise<SonarrSeason> {
     for (const s of seasons.reverse()) {
       const epResp = await apiClient.getEpisodes(showId, s.seasonNumber, [1]);
@@ -422,10 +437,10 @@ export class SonarrGetterService {
   }
 
   public async findTvdbidFromPlexLibItem(libItem: PlexLibraryItem) {
-    let tvdbid = this.getGuidFromPlexLibItem(libItem, 'tvdb');
+    let tvdbid = this.getGuidFromPlexLibItem(libItem, "tvdb");
     if (!tvdbid) {
       const plexMetaData = await this.plexApi.getMetadata(libItem.ratingKey);
-      tvdbid = this.getGuidFromPlexLibItem(plexMetaData, 'tvdb');
+      tvdbid = this.getGuidFromPlexLibItem(plexMetaData, "tvdb");
       if (!tvdbid) {
         const resp = await this.tmdbIdHelper.getTmdbIdFromPlexData(libItem);
         const tmdb = resp?.id ? resp.id : undefined;
@@ -440,7 +455,7 @@ export class SonarrGetterService {
 
     if (!tvdbid) {
       console.warn(
-        `Couldn't find tvdb id for '${libItem.title}', can not run Sonarr rules against this item`,
+        `Couldn't find tvdb id for '${libItem.title}', can not run Sonarr rules against this item`
       );
     }
     return tvdbid;
@@ -448,12 +463,12 @@ export class SonarrGetterService {
 
   private getGuidFromPlexLibItem(
     libItem: PlexLibraryItem | PlexMetadata,
-    guiID: 'tvdb' | 'imdb' | 'tmdb',
+    guiID: "tvdb" | "imdb" | "tmdb"
   ) {
     return libItem.Guid
-      ? +libItem.Guid.find((el) => el.id.includes(guiID))?.id?.split('://')[1]
+      ? +libItem.Guid.find((el) => el.id.includes(guiID))?.id?.split("://")[1]
       : libItem.guid.includes(guiID)
-        ? +libItem.guid.split('://')[1].split('?')[0]
-        : undefined;
+      ? +libItem.guid.split("://")[1].split("?")[0]
+      : undefined;
   }
 }
